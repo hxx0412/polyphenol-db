@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>植物多酚数据库</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231f4d3a'/><text y='.75em' x='.5em' font-size='60' fill='white'>P</text></svg>">
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+:root{--bg:#f6f5f1;--panel:#fff;--ink:#1f2a24;--ink-soft:#5a6b62;--line:#e2dfd6;--primary:#1f4d3a;--primary-light:#2d6b4f;--accent:#c8852a;--accent-soft:#f4e6d0;--tag-bg:#e8efeb;--tag-ink:#2d6b4f;--danger:#b5482f;--mono:'JetBrains Mono','Consolas',monospace;--sans:'Noto Sans SC',-apple-system,'PingFang SC','Microsoft YaHei',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55}
+a{color:var(--primary-light);text-decoration:none}
+a:hover{text-decoration:underline}
+.topbar{background:var(--primary);color:#fff;padding:0 24px;height:52px;display:flex;align-items:center;gap:28px;position:sticky;top:0;z-index:100}
+.topbar .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px}
+.topbar .tabs{display:flex;gap:4px;margin-left:12px}
+.topbar .tab{padding:6px 14px;border-radius:6px;cursor:pointer;color:rgba(255,255,255,.75);font-size:13.5px;user-select:none}
+.topbar .tab:hover{background:rgba(255,255,255,.08);color:#fff}
+.topbar .tab.active{background:rgba(255,255,255,.15);color:#fff;font-weight:500}
+.topbar .meta{margin-left:auto;font-size:12px;color:rgba(255,255,255,.6);font-family:var(--mono)}
+.view{display:none;padding:20px 24px;max-width:1440px;margin:0 auto}
+.view.active{display:block}
+.browse-layout{display:grid;grid-template-columns:240px 1fr;gap:16px;align-items:start}
+.filters{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;position:sticky;top:68px}
+.filters h3{font-size:12px;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:12px;font-weight:500}
+.filter-group{margin-bottom:16px}
+.filter-group label{display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:5px}
+.filter-group input,.filter-group select{width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-family:var(--sans);font-size:13px;background:#fff;color:var(--ink)}
+.filter-group input:focus,.filter-group select:focus{outline:none;border-color:var(--primary-light)}
+.filter-check{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink);margin-bottom:6px}
+.filter-check input{width:auto}
+.filter-reset{width:100%;padding:8px;background:transparent;border:1px solid var(--line);border-radius:6px;cursor:pointer;font-size:13px;color:var(--ink-soft);font-family:var(--sans)}
+.filter-reset:hover{background:var(--bg);color:var(--ink)}
+.multi-select{position:relative}
+.ms-display{min-height:34px;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:pointer;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.ms-display:hover,.multi-select.open .ms-display{border-color:var(--primary-light)}
+.ms-placeholder{color:var(--ink-soft);font-size:13px}
+.ms-tag{background:var(--tag-bg);color:var(--tag-ink);font-size:11.5px;padding:2px 6px 2px 8px;border-radius:10px;display:inline-flex;align-items:center;gap:4px}
+.ms-tag .x{cursor:pointer;font-weight:700;opacity:.6}
+.ms-tag .x:hover{opacity:1}
+.ms-dropdown{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,.1);z-index:50;max-height:260px;flex-direction:column}
+.multi-select.open .ms-dropdown{display:flex}
+.ms-actions{display:flex;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--line);font-size:12px}
+.ms-actions a{cursor:pointer;color:var(--primary-light)}
+.ms-list{overflow-y:auto;max-height:200px}
+.ms-list label{display:flex;align-items:center;gap:6px;padding:5px 10px;font-size:12.5px;cursor:pointer;color:var(--ink)}
+.ms-list label:hover{background:var(--bg)}
+.ms-list input{margin:0}
+.list-panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.list-toolbar{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.list-toolbar .count{font-size:13px;color:var(--ink-soft)}
+.list-toolbar .count strong{color:var(--primary);font-family:var(--mono)}
+.list-toolbar .search-box{flex:1;min-width:200px;padding:7px 12px;border:1px solid var(--line);border-radius:6px;font-size:13px;font-family:var(--sans)}
+.list-toolbar .search-box:focus{outline:none;border-color:var(--primary-light)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{text-align:left;padding:10px 12px;background:#faf9f5;border-bottom:1px solid var(--line);font-weight:500;color:var(--ink-soft);font-size:12px;white-space:nowrap}
+tbody td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr{cursor:pointer;transition:background .1s}
+tbody tr:hover{background:#f3f1ea}
+td .name-en{font-weight:500;color:var(--ink)}
+td .name-cn{color:var(--ink-soft);font-size:12px;margin-top:2px}
+td .cas{font-family:var(--mono);font-size:12px;color:var(--ink-soft)}
+td .formula{font-family:var(--mono);font-size:12px}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;background:var(--tag-bg);color:var(--tag-ink);font-size:11.5px;margin-right:4px;margin-bottom:2px}
+.db-badges{font-size:11px;color:var(--ink-soft)}
+.db-badges span{margin-right:6px}
+.pagination{padding:12px 16px;display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);font-size:13px}
+.pagination button{padding:5px 12px;border:1px solid var(--line);background:#fff;border-radius:5px;cursor:pointer;font-size:13px;font-family:var(--sans)}
+.pagination button:disabled{opacity:.4;cursor:not-allowed}
+.pagination button:not(:disabled):hover{background:var(--bg)}
+.pagination .page-info{color:var(--ink-soft);font-family:var(--mono)}
+.drawer-mask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200}
+.drawer-mask.open{display:block}
+.drawer{position:fixed;top:0;right:0;height:100vh;width:560px;max-width:95vw;background:var(--panel);z-index:201;box-shadow:-4px 0 20px rgba(0,0,0,.1);transform:translateX(100%);transition:transform .25s ease;overflow-y:auto}
+.drawer.open{transform:translateX(0)}
+.drawer-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:start;position:sticky;top:0;background:var(--panel);z-index:2}
+.drawer-head h2{font-size:17px;font-weight:700;line-height:1.3}
+.drawer-head .close{cursor:pointer;font-size:22px;color:var(--ink-soft);background:none;border:none;padding:4px 8px;line-height:1;font-family:var(--sans)}
+.drawer-head .close:hover{color:var(--ink)}
+.drawer-body{padding:20px}
+.detail-section{margin-bottom:22px}
+.detail-section h4{font-size:12px;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:10px;font-weight:500;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.structure-img{width:100%;background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px;text-align:center}
+.structure-img img{max-width:100%;height:220px}
+.structure-img .smi-fallback{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);word-break:break-all;text-align:left;padding:8px}
+.kv-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px}
+.kv{font-size:13px}
+.kv .k{color:var(--ink-soft);font-size:11.5px}
+.kv .v{font-family:var(--mono);font-size:12.5px;margin-top:2px;word-break:break-all}
+.link-list a{display:inline-block;margin-right:10px;margin-bottom:6px;font-size:12.5px}
+.evidence-item{padding:10px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.evidence-item:last-child{border-bottom:none}
+.evidence-item .ev-source{font-weight:500;color:var(--primary)}
+.evidence-item .ev-ref{color:var(--ink-soft);font-size:12px;margin-top:3px}
+.evidence-item .ev-snippet{margin-top:5px;padding:6px 10px;background:var(--bg);border-radius:4px;font-size:12px;color:var(--ink-soft);font-style:italic}
+.uplc-table{width:100%;font-size:12px;border-collapse:collapse}
+.uplc-table td{padding:4px 8px;border-bottom:1px solid var(--line);font-family:var(--mono)}
+.uplc-table .ukey{color:var(--ink-soft)}
+.empty-state{color:var(--ink-soft);font-size:12.5px;padding:12px;text-align:center}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat-card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px 18px}
+.stat-card .num{font-size:28px;font-weight:700;color:var(--primary);font-family:var(--mono);line-height:1.1}
+.stat-card .lbl{font-size:12.5px;color:var(--ink-soft);margin-top:4px}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.chart-box{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px}
+.chart-box h4{font-size:13px;color:var(--ink);margin-bottom:8px;font-weight:500}
+.chart-box .chart{width:100%;height:320px}
+.import-zone{background:var(--panel);border:2px dashed var(--line);border-radius:10px;padding:60px 20px;text-align:center;cursor:pointer}
+.import-zone.dragover{border-color:var(--primary-light);background:var(--tag-bg)}
+.import-zone h3{font-size:16px;color:var(--ink);margin-bottom:8px}
+.import-zone p{color:var(--ink-soft);font-size:13px}
+.import-log{margin-top:16px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;font-family:var(--mono);font-size:12px;max-height:300px;overflow-y:auto;display:none}
+.import-log.show{display:block}
+.import-log .ok{color:var(--primary-light)}
+.import-log .err{color:var(--danger)}
+@media(max-width:900px){.browse-layout{grid-template-columns:1fr}.filters{position:static}.stats-grid{grid-template-columns:repeat(2,1fr)}.chart-row{grid-template-columns:1fr}.drawer{width:100vw}.kv-grid{grid-template-columns:1fr}.topbar{padding:0 12px;gap:12px}.topbar .meta{display:none}.view{padding:12px}}
+</style>
+</head>
+<body>
+<nav class="topbar">
+<div class="brand"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg> <span>植物多酚数据库</span></div>
+<div class="tabs"><div class="tab active" data-view="browse">化合物浏览</div><div class="tab" data-view="stats">统计看板</div><div class="tab" data-view="import">导入数据</div></div>
+<div class="meta" id="topbarMeta">加载中…</div>
+</nav>
+<div class="view active" id="view-browse"><div class="browse-layout"><aside class="filters"><h3>筛选条件</h3><div class="filter-group"><label>一级分类</label><select id="fClass"><option value="">全部</option></select></div><div class="filter-group"><label>中文名 / 英文名</label><input type="text" id="fName" placeholder="如 gallic acid / 没食子酸"></div><div class="filter-group"><label>CAS 号</label><input type="text" id="fCas" placeholder="如 149-91-7"></div><div class="filter-group"><label>植物来源（可多选）</label><div class="multi-select" id="fPlantWrap"><div class="ms-display" id="fPlantDisplay"><span class="ms-placeholder">全部</span></div><div class="ms-dropdown"><div class="ms-actions"><a href="javascript:void(0)" id="fPlantAll">全选</a><a href="javascript:void(0)" id="fPlantClear">清空</a></div><div class="ms-list" id="fPlantList"></div></div></div></div><div class="filter-group"><div class="filter-check"><input type="checkbox" id="fSmiles"> <label for="fSmiles" style="margin:0">有 SMILES</label></div><div class="filter-check"><input type="checkbox" id="fEvidence"> <label for="fEvidence" style="margin:0">有油料文献证据</label></div><div class="filter-check"><input type="checkbox" id="fUplc"> <label for="fUplc" style="margin:0">有 UPLC 参数</label></div></div><button class="filter-reset" id="btnReset">重置筛选</button></aside><div class="list-panel"><div class="list-toolbar"><input type="text" class="search-box" id="searchBox" placeholder="输入名称 / CAS / 分子式关键词搜索…"><div class="count">共 <strong id="totalCount">0</strong> 个化合物</div></div><div style="overflow-x:auto"><table><thead><tr><th style="width:28%">名称</th><th style="width:18%">分类</th><th style="width:15%">CAS</th><th style="width:12%">分子式</th><th style="width:15%">多库来源</th><th style="width:12%">证据数</th></tr></thead><tbody id="tbody"></tbody></table></div><div class="pagination"><button id="btnPrev">上一页</button><span class="page-info" id="pageInfo">1 / 1</span><button id="btnNext">下一页</button><span style="margin-left:auto;color:var(--ink-soft);font-size:12px">每页 50 条</span></div></div></div></div>
+<div class="view" id="view-stats"><div class="stats-grid" id="statsKpis"></div><div class="chart-row"><div class="chart-box"><h4>一级分类化合物数量分布</h4><div class="chart" id="chartClass"></div></div><div class="chart-box"><h4>多数据库交叉覆盖</h4><div class="chart" id="chartCross"></div></div></div><div class="chart-row"><div class="chart-box"><h4>油料文献证据 Top 20 化合物</h4><div class="chart" id="chartTopEvidence"></div></div><div class="chart-box"><h4>来源植物出现频次 Top 20</h4><div class="chart" id="chartPlant"></div></div></div></div>
+<div class="view" id="view-import"><div class="import-zone" id="dropZone"><h3>拖入新的 xlsx / json 文件，或点击选择</h3><p>支持：化合物主表、证据明细、UPLC 参数表。数据将合并到服务器数据库，所有访问者刷新后可见。</p><input type="file" id="fileInput" accept=".xlsx,.xls,.json" style="display:none"></div><div class="import-log" id="importLog"></div></div>
+<div class="drawer-mask" id="drawerMask"></div><div class="drawer" id="drawer"><div class="drawer-head"><div><h2 id="dName"></h2><div id="dNameCn" style="font-size:13px;color:var(--ink-soft);margin-top:2px"></div></div><button class="close" id="drawerClose">&times;</button></div><div class="drawer-body" id="drawerBody"><div class="empty-state">加载中…</div></div></div>
+<script>
+const API='';let page=1;const PAGE_SIZE=50;let selectedPlants=new Set();
+fetch(API+'/api/filters').then(r=>r.json()).then(data=>{const sel=document.getElementById('fClass');data.classes.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;sel.appendChild(o)});const list=document.getElementById('fPlantList');data.plants.forEach(p=>{const lbl=document.createElement('label');lbl.innerHTML='<input type="checkbox" value="'+p.replace(/"/g,'&quot;')+'"><span>'+p+'</span>';lbl.querySelector('input').addEventListener('change',e=>{if(e.target.checked)selectedPlants.add(p);else selectedPlants.delete(p);renderPlantTags();loadList()});list.appendChild(lbl)})});
+document.getElementById('fPlantDisplay').addEventListener('click',e=>{if(e.target.classList.contains('x'))return;document.getElementById('fPlantWrap').classList.toggle('open')});
+document.addEventListener('click',e=>{if(!document.getElementById('fPlantWrap').contains(e.target))document.getElementById('fPlantWrap').classList.remove('open')});
+document.getElementById('fPlantAll').addEventListener('click',()=>{document.querySelectorAll('#fPlantList input').forEach(i=>{i.checked=true;selectedPlants.add(i.value)});renderPlantTags();loadList()});
+document.getElementById('fPlantClear').addEventListener('click',()=>{document.querySelectorAll('#fPlantList input').forEach(i=>{i.checked=false});selectedPlants.clear();renderPlantTags();loadList()});
+function renderPlantTags(){const d=document.getElementById('fPlantDisplay');if(selectedPlants.size===0){d.innerHTML='<span class="ms-placeholder">全部</span>';return}d.innerHTML=[...selectedPlants].map(p=>'<span class="ms-tag">'+p+'<span class="x" data-p="'+p.replace(/"/g,'&quot;')+'">&times;</span></span>').join('');d.querySelectorAll('.x').forEach(x=>x.addEventListener('click',e=>{e.stopPropagation();selectedPlants.delete(x.dataset.p);const cb=document.querySelector('#fPlantList input[value="'+x.dataset.p.replace(/"/g,'\\"')+'"]');if(cb)cb.checked=false;renderPlantTags();loadList()}))}
+function buildParams(){const p=new URLSearchParams();p.set('page',page);p.set('page_size',PAGE_SIZE);const kw=document.getElementById('searchBox').value.trim();const fN=document.getElementById('fName').value.trim();if(kw)p.set('keyword',kw);if(fN)p.set('keyword',(p.get('keyword')?p.get('keyword')+' ':'')+fN);const pc=document.getElementById('fClass').value;if(pc)p.set('primary_class',pc);const cas=document.getElementById('fCas').value.trim();if(cas)p.set('cas',cas);if(selectedPlants.size)p.set('plants',[...selectedPlants].join(','));if(document.getElementById('fSmiles').checked)p.set('has_smiles','true');if(document.getElementById('fEvidence').checked)p.set('has_evidence','true');if(document.getElementById('fUplc').checked)p.set('has_uplc','true');return p}
+function loadList(){fetch(API+'/api/compounds?'+buildParams().toString()).then(r=>r.json()).then(data=>{document.getElementById('totalCount').textContent=data.total;const tb=document.getElementById('tbody');tb.innerHTML=data.items.map(c=>{const dbs=[];if(c.mce_phenols==='Yes')dbs.push('MCE');if(c.targetmol_phenols==='Yes')dbs.push('TM');if(c.phenol_explorer==='Yes')dbs.push('PE');if(c.foodb_phenolics==='Yes')dbs.push('FooDB');return'<tr data-name="'+(c.name_en||'').replace(/"/g,'&quot;')+'"><td><div class="name-en">'+c.name_en+'</div>'+(c.name_cn?'<div class="name-cn">'+c.name_cn+'</div>':'')+'</td><td>'+(c.primary_class?'<span class="tag">'+c.primary_class+'</span>':'')+'</td><td><span class="cas">'+(c.cas||'—')+'</span></td><td><span class="formula">'+(c.formula||'—')+'</span></td><td class="db-badges">'+(dbs.length?dbs.map(d=>'<span>'+d+'</span>').join(''):'—')+'</td><td style="font-family:var(--mono)">'+(c.evidence_count>0?c.evidence_count:'')+'</td></tr>'}).join('');const tp=Math.max(1,Math.ceil(data.total/PAGE_SIZE));document.getElementById('pageInfo').textContent=page+' / '+tp;document.getElementById('btnPrev').disabled=page<=1;document.getElementById('btnNext').disabled=page>=tp;tb.querySelectorAll('tr').forEach(tr=>tr.addEventListener('click',()=>openDetail(tr.dataset.name)))})}
+['searchBox','fClass','fName','fCas','fSmiles','fEvidence','fUplc'].forEach(id=>{const el=document.getElementById(id);el.addEventListener(el.type==='checkbox'?'change':'input',()=>{page=1;loadList()})});
+document.getElementById('btnReset').addEventListener('click',()=>{['fClass','fName','fCas'].forEach(i=>document.getElementById(i).value='');['fSmiles','fEvidence','fUplc'].forEach(i=>document.getElementById(i).checked=false);document.getElementById('searchBox').value='';selectedPlants.clear();document.querySelectorAll('#fPlantList input').forEach(i=>i.checked=false);renderPlantTags();page=1;loadList()});
+document.getElementById('btnPrev').addEventListener('click',()=>{if(page>1){page--;loadList()}});
+document.getElementById('btnNext').addEventListener('click',()=>{page++;loadList()});
+function openDetail(name){document.getElementById('dName').textContent='加载中…';document.getElementById('dNameCn').textContent='';document.getElementById('drawerBody').innerHTML='<div class="empty-state">加载中…</div>';document.getElementById('drawer').classList.add('open');document.getElementById('drawerMask').classList.add('open');fetch(API+'/api/compounds/'+encodeURIComponent(name)).then(r=>r.json()).then(c=>{if(c.error){document.getElementById('drawerBody').innerHTML='<div class="empty-state">未找到</div>';return}document.getElementById('dName').textContent=c.name_en||'';document.getElementById('dNameCn').textContent=c.name_cn||'';const smi=c.smiles||c.foodb_smiles||'';let h='<div class="detail-section"><h4>化学结构</h4><div class="structure-img">';if(smi){h+='<img src="https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/'+encodeURIComponent(smi)+'/PNG?image_size=large" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'">';h+='<div class="smi-fallback" style="display:none">SMILES: '+smi+'</div>'}else h+='<div class="empty-state">无 SMILES</div>';h+='</div></div><div class="detail-section"><h4>基本信息</h4><div class="kv-grid">';[['CAS',c.cas],['分子式',c.formula],['InChIKey',c.foodb_inchikey],['一级分类',c.primary_class],['二级分类',c.secondary_class],['族系',c.family],['收录级别',c.inclusion_level],['FooDB ID',c.foodb_public_id]].forEach(([k,v])=>{if(v)h+='<div class="kv"><div class="k">'+k+'</div><div class="v">'+v+'</div></div>'});h+='</div></div>';const links=[];if(c.mce_url)links.push('<a href="'+c.mce_url+'" target="_blank">MCE ↗</a>');if(c.targetmol_url)links.push('<a href="'+c.targetmol_url+'" target="_blank">TargetMol ↗</a>');if(c.phenol_explorer_url)links.push('<a href="'+c.phenol_explorer_url+'" target="_blank">Phenol-Explorer ↗</a>');if(c.foodb_public_id)links.push('<a href="https://foodb.ca/compounds/'+c.foodb_public_id+'" target="_blank">FooDB ↗</a>');if(c.cas)links.push('<a href="https://pubchem.ncbi.nlm.nih.gov/#query='+encodeURIComponent(c.cas)+'" target="_blank">PubChem ↗</a>');if(links.length)h+='<div class="detail-section"><h4>数据库链接</h4><div class="link-list">'+links.join('')+'</div></div>';if(c.foodb_description)h+='<div class="detail-section"><h4>描述</h4><div style="font-size:13px;color:var(--ink-soft)">'+c.foodb_description+'</div></div>';h+='<div class="detail-section"><h4>油料文献证据（'+c.evidence_list.length+' 条）</h4>';if(!c.evidence_list.length)h+='<div class="empty-state">无文献证据</div>';else c.evidence_list.slice(0,50).forEach(e=>{h+='<div class="evidence-item"><div class="ev-source">'+(e.source||'')+' · '+(e.data_source||'')+'</div><div class="ev-ref">'+(e.reference||'')+(e.doi?' · <a href="https://doi.org/'+e.doi+'" target="_blank">'+e.doi+'</a>':'')+'</div>'+(e.snippet?'<div class="ev-snippet">"'+e.snippet+'"</div>':'')+'</div>'});h+='</div>';if(c.uplc_list.length){h+='<div class="detail-section"><h4>UPLC-MS/MS 参数（'+c.uplc_list.length+' 条）</h4>';c.uplc_list.forEach(u=>{h+='<table class="uplc-table"><tr><td class="ukey">Formula</td><td>'+(u.formula||'')+'</td><td class="ukey">Q1</td><td>'+(u.q1||'')+'</td></tr><tr><td class="ukey">MW</td><td>'+(u.mw||'')+'</td><td class="ukey">Q3</td><td>'+(u.q3||'')+'</td></tr><tr><td class="ukey">Ion</td><td>'+(u.ionization||'')+'</td><td class="ukey">Level</td><td>'+(u.level||'')+'</td></tr><tr><td class="ukey">CAS</td><td>'+(u.cas||'')+'</td><td class="ukey">KEGG</td><td>'+(u.kegg_map||'')+'</td></tr></table>'});h+='</div>'}document.getElementById('drawerBody').innerHTML=h})}
+function closeDrawer(){document.getElementById('drawer').classList.remove('open');document.getElementById('drawerMask').classList.remove('open')}
+document.getElementById('drawerClose').addEventListener('click',closeDrawer);document.getElementById('drawerMask').addEventListener('click',closeDrawer);
+document.querySelectorAll('.tab').forEach(tab=>{tab.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));tab.classList.add('active');document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById('view-'+tab.dataset.view).classList.add('active');if(tab.dataset.view==='stats')renderStats()})});
+let statsRendered=false;function renderStats(){if(statsRendered)return;statsRendered=true;Promise.all([fetch(API+'/api/stats').then(r=>r.json()),fetch(API+'/api/top-evidence?n=20').then(r=>r.json()),fetch(API+'/api/top-plants?n=20').then(r=>r.json())]).then(([s,topEv,topPl])=>{document.getElementById('topbarMeta').textContent=s.compounds_total+' compounds · '+s.evidence_total+' evidence · '+s.uplc_total+' UPLC';document.getElementById('statsKpis').innerHTML=[['化合物总数',s.compounds_total],['油料文献证据',s.evidence_total],['UPLC 参数条目',s.uplc_total],['含 SMILES 结构',s.has_smiles]].map(([k,v])=>'<div class="stat-card"><div class="num">'+v.toLocaleString()+'</div><div class="lbl">'+k+'</div></div>').join('');const cd=Object.entries(s.class_dist).sort((a,b)=>b[1]-a[1]).slice(0,15);echarts.init(document.getElementById('chartClass')).setOption({tooltip:{trigger:'item'},series:[{type:'pie',radius:['40%','70%'],data:cd.map(([k,v])=>({name:k,value:v})),label:{fontSize:11}}]});echarts.init(document.getElementById('chartCross')).setOption({tooltip:{},xAxis:{type:'category',data:Object.keys(s.cross_db)},yAxis:{type:'value'},series:[{type:'bar',data:Object.values(s.cross_db),itemStyle:{color:'#1f4d3a'}}]});const te=topEv.slice().reverse();echarts.init(document.getElementById('chartTopEvidence')).setOption({grid:{left:160,right:30,top:10,bottom:20},xAxis:{type:'value'},yAxis:{type:'category',data:te.map(t=>t.name),axisLabel:{fontSize:10}},series:[{type:'bar',data:te.map(t=>t.count),itemStyle:{color:'#c8852a'}}]});const tp=topPl.slice().reverse();echarts.init(document.getElementById('chartPlant')).setOption({grid:{left:140,right:30,top:10,bottom:20},xAxis:{type:'value'},yAxis:{type:'category',data:tp.map(t=>t.name),axisLabel:{fontSize:11}},series:[{type:'bar',data:tp.map(t=>t.count),itemStyle:{color:'#2d6b4f'}}]})})}
+const dropZone=document.getElementById('dropZone'),fileInput=document.getElementById('fileInput'),importLog=document.getElementById('importLog');dropZone.addEventListener('click',()=>fileInput.click());dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('dragover')});dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('dragover'));dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('dragover');handleFiles(e.dataTransfer.files)});fileInput.addEventListener('change',()=>handleFiles(fileInput.files));function log(m,c){importLog.classList.add('show');const d=document.createElement('div');if(c)d.className=c;d.textContent=m;importLog.appendChild(d);importLog.scrollTop=importLog.scrollHeight}
+function handleFiles(files){for(const f of files){const fd=new FormData();fd.append('file',f);log('上传 '+f.name+' …');fetch(API+'/api/upload',{method:'POST',body:fd}).then(r=>r.json()).then(res=>{if(res.error)log('失败: '+res.error,'err');else log('完成: +'+res.added.evidence+' 证据, +'+res.added.uplc+' UPLC, +'+res.added.compounds+' 化合物','ok');statsRendered=false;loadList()}).catch(err=>log('网络错误: '+err.message,'err'))}}
+fetch(API+'/api/stats').then(r=>r.json()).then(s=>{document.getElementById('topbarMeta').textContent=s.compounds_total+' compounds · '+s.evidence_total+' evidence · '+s.uplc_total+' UPLC'});
+loadList();
+</script>
+</body>
+</html>
