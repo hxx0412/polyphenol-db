@@ -14,13 +14,48 @@ import openpyxl
 DB_PATH = os.path.join(os.path.dirname(__file__), "polyphenol.db")
 SEED_PATH = os.path.join(os.path.dirname(__file__), "seed.sql")
 
-if not os.path.exists(DB_PATH) and os.path.exists(SEED_PATH):
-    _conn = sqlite3.connect(DB_PATH)
-    with open(SEED_PATH, "r", encoding="utf-8") as f:
-        _conn.executescript(f.read())
-    _conn.commit()
-    _conn.close()
-    print("Initialized database from seed.sql")
+def init_schema():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""CREATE TABLE IF NOT EXISTS compounds (
+        name_en TEXT PRIMARY KEY, name_cn TEXT, primary_class TEXT, secondary_class TEXT,
+        family TEXT, inclusion_level TEXT, cas TEXT, formula TEXT,
+        representative_plants TEXT, common_sources TEXT,
+        mce_phenols TEXT, targetmol_phenols TEXT, phenol_explorer TEXT,
+        mce_url TEXT, targetmol_url TEXT, phenol_explorer_url TEXT,
+        foodb_phenolics TEXT, foodb_public_id TEXT, foodb_evidence_level TEXT,
+        foodb_superklass TEXT, foodb_klass TEXT, foodb_subklass TEXT,
+        foodb_inchikey TEXT, foodb_smiles TEXT, foodb_annotation_quality TEXT,
+        foodb_description TEXT, smiles TEXT, smiles_source TEXT, pubchem_title TEXT)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS evidence (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, compound_name TEXT, category TEXT,
+        source TEXT, reference TEXT, data_source TEXT, platform TEXT, pdf_file TEXT,
+        doi TEXT, url TEXT, snippet TEXT)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS uplc (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, compound_name TEXT, original_name TEXT,
+        category TEXT, primary_class TEXT, secondary_class TEXT, formula TEXT,
+        q1 TEXT, q3 TEXT, mw TEXT, ionization TEXT, level TEXT, cas TEXT,
+        cpd_id TEXT, fp TEXT, ep TEXT, kegg_map TEXT)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS lit_references (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, crop TEXT, platform TEXT, query TEXT,
+        title TEXT, doi TEXT, year TEXT, journal TEXT, url TEXT,
+        compounds_identified TEXT, count TEXT)""")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_ev_name ON evidence(compound_name)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_up_name ON uplc(compound_name)")
+    conn.commit()
+    conn.close()
+
+if not os.path.exists(DB_PATH):
+    init_schema()
+    if os.path.exists(SEED_PATH):
+        conn = sqlite3.connect(DB_PATH)
+        with open(SEED_PATH, "r", encoding="utf-8") as f:
+            conn.executescript(f.read())
+        conn.commit()
+        conn.close()
+        print("Initialized database from seed.sql")
+    else:
+        print("No seed.sql; empty tables created. Upload xlsx via web UI.")
 
 app = FastAPI(title="Polyphenol DB")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
