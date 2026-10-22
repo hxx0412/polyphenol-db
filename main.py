@@ -104,7 +104,7 @@ def filters():
     return {"classes":classes,"plants":sorted(plants)}
 
 @app.get("/api/compounds")
-def list_compounds(keyword="", primary_class="", cas="", plants="", has_smiles=False, has_evidence=False, has_uplc=False, page=1, page_size=50):
+def list_compounds(keyword: str = "", primary_class: str = "", cas: str = "", plants: str = "", has_smiles: bool = False, has_evidence: bool = False, has_uplc: bool = False, page: int = 1, page_size: int = 50):
     conn = get_db()
     where, params = [], []
     if keyword:
@@ -133,7 +133,7 @@ def list_compounds(keyword="", primary_class="", cas="", plants="", has_smiles=F
     return {"total":total,"page":page,"page_size":page_size,"items":[dict(r) for r in rows]}
 
 @app.get("/api/compounds/{name}")
-def detail(name):
+def detail(name: str):
     conn = get_db()
     r = conn.execute("SELECT * FROM compounds WHERE name_en=?",[name]).fetchone()
     if not r: conn.close(); return JSONResponse({"error":"not found"},status_code=404)
@@ -144,14 +144,14 @@ def detail(name):
     return c
 
 @app.get("/api/top-evidence")
-def top_ev(n=20):
+def top_ev(n: int = 20):
     conn = get_db()
     rows = conn.execute("SELECT compound_name, COUNT(*) c FROM evidence GROUP BY compound_name ORDER BY c DESC LIMIT ?",[n]).fetchall()
     conn.close()
     return [{"name":r[0],"count":r[1]} for r in rows]
 
 @app.get("/api/top-plants")
-def top_pl(n=20):
+def top_pl(n: int = 20):
     conn = get_db()
     cnt = {}
     for r in conn.execute("SELECT source FROM evidence WHERE source IS NOT NULL"):
