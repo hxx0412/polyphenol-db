@@ -42,6 +42,7 @@ def init_schema():
         compounds_identified TEXT, count TEXT)""")
     c.execute("CREATE INDEX IF NOT EXISTS idx_ev_name ON evidence(compound_name)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_up_name ON uplc(compound_name)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_comp_class ON compounds(primary_class)")
     conn.commit()
     conn.close()
 
@@ -55,7 +56,7 @@ if not os.path.exists(DB_PATH):
         conn.close()
         print("Initialized database from seed.sql")
     else:
-        print("No seed.sql; empty tables created. Upload xlsx via web UI.")
+        print("Empty database created. Upload xlsx files via web UI.")
 
 app = FastAPI(title="Polyphenol DB")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -160,50 +161,153 @@ def top_pl(n=20):
     conn.close()
     return [{"name":k,"count":v} for k,v in sorted(cnt.items(),key=lambda x:-x[1])[:n]]
 
+
+def _safe(v):
+    if v is None: return None
+    s = str(v).strip()
+    return s if s else None
+
+
 @app.post("/api/upload")
 async def upload(file: UploadFile = File(...)):
     content = await file.read()
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    added = {"compounds":0,"evidence":0,"uplc":0}
+    added = {"compounds":0,"evidence":0,"uplc":0,"lit_references":0}
+
     try:
-        if file.filename.endswith(".json"):
-            data = json.loads(content)
-            for item in data.get("compounds",[]):
-                if item.get("name_en"):
-                    c.execute("INSERT OR REPLACE INTO compounds (name_en,name_cn,primary_class,cas,formula,smiles) VALUES (?,?,?,?,?,?)",
-                        [item.get("name_en"),item.get("name_cn"),item.get("primary_class"),item.get("cas"),item.get("formula"),item.get("smiles")])
-                    added["compounds"]+=1
-            for item in data.get("evidence",[]):
-                if item.get("化合物名称"):
-                    c.execute("INSERT INTO evidence (compound_name,category,source,reference,data_source,doi,url,snippet) VALUES (?,?,?,?,?,?,?,?)",
-                        [item.get("化合物名称"),item.get("类别"),item.get("来源"),item.get("参考文献"),item.get("数据来源"),item.get("DOI"),item.get("文献链接"),item.get("证据片段")])
-                    added["evidence"]+=1
-            for item in data.get("uplc",[]):
-                if item.get("化合物名称"):
-                    c.execute("INSERT INTO uplc (compound_name,formula,q1,q3,mw,ionization,level,cas,kegg_map) VALUES (?,?,?,?,?,?,?,?,?)",
-                        [item.get("化合物名称"),item.get("Formula"),item.get("Q1 (Da)"),item.get("Q3 (Da)"),item.get("Molecular weight (Da)"),item.get("Ionization model"),item.get("Level"),item.get("CAS"),item.get("kegg_map")])
-                    added["uplc"]+=1
-        else:
-            wb = openpyxl.load_workbook(io.BytesIO(content))
-            for sn in wb.sheetnames:
-                ws = wb[sn]
-                rows = list(ws.iter_rows(values_only=True))
-                if not rows: continue
-                headers = [str(v).strip() if v else "" for v in rows[0]]
-                for row in rows[1:]:
-                    d = {headers[i]:row[i] for i in range(len(headers)) if i<len(row) and row[i] is not None}
-                    if "化合物名称" in d:
-                        c.execute("INSERT INTO evidence (compound_name,category,source,reference,data_source,doi,url,snippet) VALUES (?,?,?,?,?,?,?,?)",
-                            [d.get("化合物名称"),d.get("类别"),d.get("来源"),d.get("参考文献"),d.get("数据来源"),d.get("DOI"),d.get("文献链接"),d.get("证据片段")])
-                        added["evidence"]+=1
+        wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+        for sn in wb.sheetnames:
+            ws = wb[sn]
+            rows_iter = ws.iter_rows(values_only=True)
+            try:
+                header = next(rows_iter)
+            except StopIteration:
+                continue
+            headers = [str(v).strip() if v else "" for v in header]
+            col = {h: i for i, h in enumerate(headers) if h}
+
+            if sn in ("Master_complete_only", "Master_strict_complete") or "name_en" in col:
+                for row in rows_iter:
+                    name = _safe(row[col["name_en"]]) if "name_en" in col else None
+                    if not name:
+                        continue
+                    c.execute("""INSERT OR REPLACE INTO compounds
+                        (name_en,name_cn,primary_class,secondary_class,family,inclusion_level,cas,formula,
+                         representative_plants,common_sources,mce_phenols,targetmol_phenols,phenol_explorer,
+                         mce_url,targetmol_url,phenol_explorer_url,foodb_phenolics,foodb_public_id,
+                         foodb_evidence_level,foodb_superklass,foodb_klass,foodb_subklass,foodb_inchikey,
+                         foodb_smiles,foodb_annotation_quality,foodb_description,smiles,smiles_source,pubchem_title)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                        [name,
+                         _safe(row[col["name_cn"]]) if "name_cn" in col else None,
+                         _safe(row[col["primary_class"]]) if "primary_class" in col else None,
+                         _safe(row[col["secondary_class"]]) if "secondary_class" in col else None,
+                         _safe(row[col["family"]]) if "family" in col else None,
+                         _safe(row[col["inclusion_level"]]) if "inclusion_level" in col else None,
+                         _safe(row[col["cas"]]) if "cas" in col else None,
+                         _safe(row[col["formula"]]) if "formula" in col else None,
+                         _safe(row[col["representative_plants"]]) if "representative_plants" in col else None,
+                         _safe(row[col["common_sources"]]) if "common_sources" in col else None,
+                         _safe(row[col["mce_phenols"]]) if "mce_phenols" in col else None,
+                         _safe(row[col["targetmol_polyphenols"]]) if "targetmol_polyphenols" in col else (_safe(row[col["targetmol_phenols"]]) if "targetmol_phenols" in col else None),
+                         _safe(row[col["phenol_explorer"]]) if "phenol_explorer" in col else None,
+                         _safe(row[col["mce_url"]]) if "mce_url" in col else None,
+                         _safe(row[col["targetmol_url"]]) if "targetmol_url" in col else None,
+                         _safe(row[col["phenol_explorer_url"]]) if "phenol_explorer_url" in col else None,
+                         _safe(row[col["foodb_phenolics"]]) if "foodb_phenolics" in col else None,
+                         _safe(row[col["foodb_public_id"]]) if "foodb_public_id" in col else None,
+                         _safe(row[col["foodb_evidence_level"]]) if "foodb_evidence_level" in col else None,
+                         _safe(row[col["foodb_superklass"]]) if "foodb_superklass" in col else None,
+                         _safe(row[col["foodb_klass"]]) if "foodb_klass" in col else None,
+                         _safe(row[col["foodb_subklass"]]) if "foodb_subklass" in col else None,
+                         _safe(row[col["foodb_inchikey"]]) if "foodb_inchikey" in col else None,
+                         _safe(row[col["foodb_smiles"]]) if "foodb_smiles" in col else None,
+                         _safe(row[col["foodb_annotation_quality"]]) if "foodb_annotation_quality" in col else None,
+                         _safe(row[col["foodb_description"]]) if "foodb_description" in col else None,
+                         _safe(row[col["smiles"]]) if "smiles" in col else None,
+                         _safe(row[col["smiles_source"]]) if "smiles_source" in col else None,
+                         _safe(row[col["pubchem_title"]]) if "pubchem_title" in col else None])
+                    added["compounds"] += 1
+
+            elif sn == "补充明细" or ("化合物名称" in col and "证据片段" in col):
+                for row in rows_iter:
+                    name = _safe(row[col["化合物名称"]]) if "化合物名称" in col else None
+                    if not name:
+                        continue
+                    c.execute("""INSERT INTO evidence
+                        (compound_name,category,source,reference,data_source,platform,pdf_file,doi,url,snippet)
+                        VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                        [name,
+                         _safe(row[col["类别"]]) if "类别" in col else None,
+                         _safe(row[col["来源"]]) if "来源" in col else None,
+                         _safe(row[col["参考文献"]]) if "参考文献" in col else None,
+                         _safe(row[col["数据来源"]]) if "数据来源" in col else None,
+                         _safe(row[col["来源平台"]]) if "来源平台" in col else None,
+                         _safe(row[col["PDF文件"]]) if "PDF文件" in col else None,
+                         _safe(row[col["DOI"]]) if "DOI" in col else None,
+                         _safe(row[col["文献链接"]]) if "文献链接" in col else None,
+                         _safe(row[col["证据片段"]]) if "证据片段" in col else None])
+                    added["evidence"] += 1
+
+            elif sn == "菜籽UPLC筛选" or ("Q1 (Da)" in col and "Ionization model" in col):
+                for row in rows_iter:
+                    name = _safe(row[col["化合物名称"]]) if "化合物名称" in col else None
+                    if not name:
+                        continue
+                    c.execute("""INSERT INTO uplc
+                        (compound_name,original_name,category,primary_class,secondary_class,formula,
+                         q1,q3,mw,ionization,level,cas,cpd_id,fp,ep,kegg_map)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                        [name,
+                         _safe(row[col["原始化合物名称"]]) if "原始化合物名称" in col else None,
+                         _safe(row[col["类别"]]) if "类别" in col else None,
+                         _safe(row[col["一级分类"]]) if "一级分类" in col else None,
+                         _safe(row[col["二级分类"]]) if "二级分类" in col else None,
+                         _safe(row[col["Formula"]]) if "Formula" in col else None,
+                         _safe(row[col["Q1 (Da)"]]) if "Q1 (Da)" in col else None,
+                         _safe(row[col["Q3 (Da)"]]) if "Q3 (Da)" in col else None,
+                         _safe(row[col["Molecular weight (Da)"]]) if "Molecular weight (Da)" in col else None,
+                         _safe(row[col["Ionization model"]]) if "Ionization model" in col else None,
+                         _safe(row[col["Level"]]) if "Level" in col else None,
+                         _safe(row[col["CAS"]]) if "CAS" in col else None,
+                         _safe(row[col["cpd_ID"]]) if "cpd_ID" in col else None,
+                         _safe(row[col["FP"]]) if "FP" in col else None,
+                         _safe(row[col["EP"]]) if "EP" in col else None,
+                         _safe(row[col["kegg_map"]]) if "kegg_map" in col else None])
+                    added["uplc"] += 1
+
+            elif sn == "在线化学实体记录" or "检索作物" in col:
+                for row in rows_iter:
+                    title = _safe(row[col["题名"]]) if "题名" in col else None
+                    if not title:
+                        continue
+                    c.execute("""INSERT INTO lit_references
+                        (crop,platform,query,title,doi,year,journal,url,compounds_identified,count)
+                        VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                        [_safe(row[col["检索作物"]]) if "检索作物" in col else None,
+                         _safe(row[col["来源平台"]]) if "来源平台" in col else None,
+                         _safe(row[col["检索词"]]) if "检索词" in col else None,
+                         title,
+                         _safe(row[col["DOI"]]) if "DOI" in col else None,
+                         _safe(row[col["年份"]]) if "年份" in col else None,
+                         _safe(row[col["期刊"]]) if "期刊" in col else None,
+                         _safe(row[col["文献链接"]]) if "文献链接" in col else None,
+                         _safe(row[col["识别化合物"]]) if "识别化合物" in col else None,
+                         _safe(row[col["识别数量"]]) if "识别数量" in col else None])
+                    added["lit_references"] += 1
+
+        wb.close()
         conn.commit()
     except Exception as e:
         conn.rollback()
-        return JSONResponse({"error":str(e)},status_code=400)
+        import traceback
+        return JSONResponse({"error": str(e), "detail": traceback.format_exc()}, status_code=400)
     finally:
         conn.close()
+
     return {"status":"ok","added":added,"filename":file.filename}
+
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
