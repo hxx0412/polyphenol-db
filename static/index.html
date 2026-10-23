@@ -1,1 +1,772 @@
-PLACEHOLDER
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多酚数据库</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%232d6a4f'/><text y='.75em' x='.5em' font-size='60' fill='white'>P</text></svg>">
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@600;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+:root{
+  --bg:#f5f3ee;--card:#fff;--ink:#1f2a24;--ink2:#4a574f;--ink3:#8a948d;
+  --line:#e2dfd6;--green:#2d6a4f;--green2:#52b788;--green-l:#e8f5ec;
+  --amber:#b8732a;--amber-l:#faf0e2;--blue:#2c5f8a;--blue-l:#e8f1f8;
+  --radius:10px;--shadow:0 1px 3px rgba(30,40,30,.06);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Noto Sans SC",sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6}
+h1,h2,h3{font-family:"Noto Serif SC",serif}
+
+.topbar{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50}
+.topbar-inner{max-width:1400px;margin:0 auto;padding:0 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.brand{font-family:"Noto Serif SC",serif;font-size:17px;font-weight:700;color:var(--green);padding:13px 0;white-space:nowrap}
+.sys-switch{display:flex;background:var(--bg);border-radius:8px;padding:3px;gap:2px}
+.sys-btn{border:none;background:transparent;padding:7px 18px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;color:var(--ink2);transition:all .2s;font-family:inherit}
+.sys-btn.active{background:var(--green);color:#fff;box-shadow:var(--shadow)}
+.sys-btn:not(.active):hover{background:var(--green-l)}
+.tab-nav{display:flex;gap:2px;margin-left:auto}
+.tab-btn{border:none;background:transparent;padding:13px 14px;cursor:pointer;font-size:14px;color:var(--ink2);border-bottom:2px solid transparent;font-family:inherit;transition:all .15s}
+.tab-btn:hover{color:var(--green)}
+.tab-btn.active{color:var(--green);border-bottom-color:var(--green);font-weight:600}
+
+.container{max-width:1400px;margin:0 auto;padding:24px}
+.page{display:none}.page.active{display:block}
+
+.filter-bar{background:var(--card);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-bottom:20px}
+.filter-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:12px;color:var(--ink3);font-weight:500}
+.field input,.field select{padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;font-family:inherit;background:#fff;color:var(--ink)}
+.field input:focus,.field select:focus{outline:none;border-color:var(--green2)}
+.check-row{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.check{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink2);cursor:pointer}
+.check input{accent-color:var(--green)}
+.btn{padding:8px 18px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;transition:all .15s}
+.btn-primary{background:var(--green);color:#fff}.btn-primary:hover{background:#235239}
+.btn-ghost{background:transparent;color:var(--ink2);border:1px solid var(--line)}.btn-ghost:hover{background:var(--bg)}
+
+.multi-select{position:relative}
+.multi-trigger{padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:#fff;cursor:pointer;min-height:36px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.multi-trigger .placeholder{color:var(--ink3)}
+.multi-tag{background:var(--green-l);color:var(--green);padding:2px 8px;border-radius:4px;font-size:12px;display:inline-flex;align-items:center;gap:4px}
+.multi-tag span{cursor:pointer;font-weight:700}
+.multi-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.1);max-height:260px;overflow-y:auto;z-index:30;display:none}
+.multi-dropdown.open{display:block}
+.multi-option{padding:8px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px}
+.multi-option:hover{background:var(--green-l)}
+.multi-option input{accent-color:var(--green)}
+.multi-search{padding:8px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff}
+.multi-search input{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:4px;font-size:12px;font-family:inherit}
+
+.result-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px}
+.result-count{font-size:14px;color:var(--ink2)}
+.result-count b{color:var(--green);font-size:16px}
+table{width:100%;border-collapse:collapse;background:var(--card);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+thead{background:var(--bg)}
+th{padding:11px 12px;text-align:left;font-size:12px;font-weight:600;color:var(--ink2);white-space:nowrap}
+td{padding:10px 12px;border-top:1px solid var(--line);font-size:13px}
+tr:hover td{background:#fafcf9}
+.link-name{color:var(--green);cursor:pointer;font-weight:500}
+.link-name:hover{text-decoration:underline}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;margin:1px}
+.badge-green{background:var(--green-l);color:var(--green)}
+.badge-amber{background:var(--amber-l);color:var(--amber)}
+.badge-blue{background:var(--blue-l);color:var(--blue)}
+.badge-gray{background:var(--bg);color:var(--ink2)}
+.pagination{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:20px}
+.pagination button{padding:6px 14px;border:1px solid var(--line);background:#fff;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px}
+.pagination button:disabled{opacity:.4;cursor:default}
+.pagination .page-info{font-size:13px;color:var(--ink2)}
+.pagination select{padding:5px;border:1px solid var(--line);border-radius:4px;font-family:inherit}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:24px}
+.kpi-card{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);border-left:3px solid var(--green)}
+.kpi-card.amber{border-left-color:var(--amber)}.kpi-card.blue{border-left-color:var(--blue)}
+.kpi-num{font-size:32px;font-weight:700;color:var(--ink);font-family:"Noto Serif SC",serif;line-height:1.2}
+.kpi-label{font-size:13px;color:var(--ink3);margin-top:4px}
+.chart-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(480px,1fr));gap:16px;margin-bottom:20px}
+.chart-card{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+.chart-card h3{font-size:15px;margin-bottom:14px;color:var(--ink)}
+.chart-box{height:340px}
+.chart-card.full{grid-column:1/-1}
+
+.upload-card{background:var(--card);border-radius:var(--radius);padding:32px;box-shadow:var(--shadow);max-width:680px;margin:0 auto;text-align:center}
+.upload-zone{border:2px dashed var(--line);border-radius:var(--radius);padding:48px 24px;cursor:pointer;transition:all .2s}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--green2);background:var(--green-l)}
+.upload-zone h3{font-size:16px;margin-bottom:8px}
+.upload-zone p{color:var(--ink3);font-size:13px}
+.upload-zone input{display:none}
+.upload-result{margin-top:20px;text-align:left}
+.upload-result .ok{color:var(--green);font-weight:600}
+.upload-result .err{color:#c0392b}
+.upload-hint{background:var(--bg);border-radius:8px;padding:16px;margin-top:20px;text-align:left;font-size:13px;color:var(--ink2)}
+.upload-hint b{color:var(--ink)}
+
+.modal-mask{position:fixed;inset:0;background:rgba(20,30,24,.5);z-index:100;display:none;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto}
+.modal-mask.open{display:flex}
+.modal{background:#fff;border-radius:12px;max-width:860px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-head{padding:20px 24px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.modal-head h2{font-size:18px;line-height:1.4}
+.modal-close{border:none;background:var(--bg);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:16px;flex-shrink:0}
+.modal-body{padding:24px;max-height:70vh;overflow-y:auto}
+.detail-section{margin-bottom:24px}
+.detail-section h3{font-size:14px;color:var(--green);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.detail-item{font-size:13px}
+.detail-item .k{color:var(--ink3);font-size:12px}
+.detail-item .v{color:var(--ink);word-break:break-word}
+.evidence-item{background:var(--bg);border-radius:8px;padding:12px 14px;margin-bottom:10px;font-size:13px}
+.evidence-item .meta{display:flex;gap:12px;flex-wrap:wrap;color:var(--ink3);font-size:12px;margin-bottom:6px}
+.evidence-item .snippet{color:var(--ink2)}
+.evidence-item a{color:var(--green)}
+.uplc-table{font-size:12px}
+.uplc-table th,.uplc-table td{padding:7px 8px}
+
+.loading{text-align:center;padding:40px;color:var(--ink3)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 24px;border-radius:8px;font-size:13px;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+
+@media(max-width:768px){
+  .topbar-inner{padding:0 12px;gap:10px}
+  .tab-nav{margin-left:0;width:100%;overflow-x:auto}
+  .container{padding:14px}
+  .chart-grid{grid-template-columns:1fr}
+  .chart-box{height:280px}
+  th,td{padding:8px 6px}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== 顶部导航 ===== -->
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">多酚数据库</div>
+    <div class="sys-switch">
+      <button class="sys-btn active" data-sys="natural">天然多酚</button>
+      <button class="sys-btn" data-sys="oil">油料多酚</button>
+    </div>
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="browse">化合物浏览</button>
+      <button class="tab-btn" data-tab="stats">统计看板</button>
+      <button class="tab-btn" data-tab="upload">导入数据</button>
+    </nav>
+  </div>
+</header>
+
+<div class="container">
+
+<!-- ===== 化合物浏览页 ===== -->
+<div class="page active" id="page-browse">
+  <div class="filter-bar">
+    <div class="filter-grid">
+      <div class="field">
+        <label>分类</label>
+        <select id="fClass"><option value="">全部分类</option></select>
+      </div>
+      <div class="field">
+        <label>名称（中文 / 英文）</label>
+        <input type="text" id="fKeyword" placeholder="输入化合物名称">
+      </div>
+      <div class="field" id="fCasField">
+        <label>CAS 号</label>
+        <input type="text" id="fCas" placeholder="如 149-91-7">
+      </div>
+      <div class="field">
+        <label>植物来源（可多选）</label>
+        <div class="multi-select" id="fPlantWrap">
+          <div class="multi-trigger" id="fPlantTrigger"><span class="placeholder">全部来源</span></div>
+          <div class="multi-dropdown" id="fPlantDropdown">
+            <div class="multi-search"><input type="text" id="fPlantSearch" placeholder="搜索植物…"></div>
+            <div id="fPlantOptions"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="check-row">
+      <label class="check" id="chkSmilesWrap"><input type="checkbox" id="chkSmiles"> 有 SMILES 结构</label>
+      <label class="check" id="chkEvWrap"><input type="checkbox" id="chkEvidence"> 有文献证据</label>
+      <label class="check" id="chkUpWrap"><input type="checkbox" id="chkUplc"> 有 UPLC 参数</label>
+      <button class="btn btn-ghost" id="btnReset" style="margin-left:auto">重置筛选</button>
+    </div>
+  </div>
+
+  <div class="result-head">
+    <div class="result-count">共 <b id="totalNum">0</b> 个化合物</div>
+  </div>
+  <div style="overflow-x:auto">
+    <table>
+      <thead><tr id="tableHead"></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <div class="pagination">
+    <button id="btnPrev">上一页</button>
+    <span class="page-info" id="pageInfo">1 / 1</span>
+    <button id="btnNext">下一页</button>
+    <select id="pageSizeSel">
+      <option value="20">20 条/页</option>
+      <option value="50" selected>50 条/页</option>
+      <option value="100">100 条/页</option>
+    </select>
+  </div>
+</div>
+
+<!-- ===== 统计看板页 ===== -->
+<div class="page" id="page-stats">
+  <div class="kpi-grid" id="kpiGrid"></div>
+  <div class="chart-grid" id="chartGrid"></div>
+</div>
+
+<!-- ===== 导入数据页 ===== -->
+<div class="page" id="page-upload">
+  <div class="upload-card">
+    <div class="upload-zone" id="uploadZone">
+      <h3>点击选择或拖入 xlsx 文件</h3>
+      <p>上传后数据将合并到当前数据库，所有访问者刷新即可看到</p>
+      <input type="file" id="fileInput" accept=".xlsx,.xls">
+    </div>
+    <div class="upload-result" id="uploadResult"></div>
+    <div class="upload-hint" id="uploadHint"></div>
+  </div>
+</div>
+
+</div>
+
+<!-- ===== 详情弹窗 ===== -->
+<div class="modal-mask" id="modalMask">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="modalTitle"></h2>
+      <button class="modal-close" id="modalClose">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// 全局状态
+// ============================================================
+let currentSys = 'natural';   // natural | oil
+let page = 1;
+let pageSize = 50;
+let selectedPlants = new Set();
+let filterData = { classes: [], plants: [] };
+let chartInstances = [];
+
+const SYS_CONFIG = {
+  natural: {
+    label: '天然多酚',
+    filters: '/api/natural/filters',
+    compounds: '/api/natural/compounds',
+    detail: '/api/natural/compounds/',
+    stats: '/api/natural/stats',
+  },
+  oil: {
+    label: '油料多酚',
+    filters: '/api/oil/filters',
+    compounds: '/api/oil/compounds',
+    detail: '/api/oil/compounds/',
+    stats: '/api/oil/stats',
+  },
+};
+
+function api(path) {
+  return fetch(path).then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  });
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ============================================================
+// 系统切换
+// ============================================================
+document.querySelectorAll('.sys-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.sys === currentSys) return;
+    currentSys = btn.dataset.sys;
+    document.querySelectorAll('.sys-btn').forEach(b => b.classList.toggle('active', b === btn));
+    resetState();
+    initSystem();
+    if (document.getElementById('page-stats').classList.contains('active')) renderStats();
+  });
+});
+
+// 标签页切换
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'stats') renderStats();
+  });
+});
+
+function resetState() {
+  page = 1;
+  selectedPlants = new Set();
+  document.getElementById('fKeyword').value = '';
+  document.getElementById('fCas').value = '';
+  document.getElementById('fClass').value = '';
+  document.getElementById('chkSmiles').checked = false;
+  document.getElementById('chkEvidence').checked = false;
+  document.getElementById('chkUplc').checked = false;
+  document.getElementById('fPlantSearch').value = '';
+  chartInstances.forEach(c => c.dispose());
+  chartInstances = [];
+}
+
+// ============================================================
+// 初始化当前系统
+// ============================================================
+function initSystem() {
+  const cfg = SYS_CONFIG[currentSys];
+  // 控制只适用于特定系统的字段
+  const isOil = currentSys === 'oil';
+  document.getElementById('fCasField').style.display = isOil ? 'none' : '';
+  document.getElementById('chkSmilesWrap').style.display = isOil ? 'none' : '';
+  document.getElementById('chkUpWrap').style.display = isOil ? '' : 'none';
+  document.getElementById('chkEvWrap').querySelector('input').checked = false;
+  // 上传提示
+  document.getElementById('uploadHint').innerHTML = isOil
+    ? '<b>油料多酚文件：</b>请上传 01_oilseed_polyphenol_database.xlsx，系统将自动解析合并汇总、补充明细、UPLC筛选、在线化学实体记录。'
+    : '<b>天然多酚文件：</b>请上传 02_plant_polyphenol_database.xlsx，系统将自动解析 Master_complete_only 化合物主表。';
+
+  // 加载筛选选项
+  api(cfg.filters).then(data => {
+    filterData = data;
+    // 分类下拉
+    const sel = document.getElementById('fClass');
+    sel.innerHTML = '<option value="">全部分类</option>' +
+      data.classes.map(c => '<option value="' + esc(c) + '">' + esc(c) + '</option>').join('');
+    // 植物多选
+    renderPlantOptions('');
+    renderPlantTags();
+  });
+
+  loadCompounds();
+}
+
+// ============================================================
+// 植物多选组件
+// ============================================================
+function renderPlantOptions(keyword) {
+  const kw = keyword.trim().toLowerCase();
+  const plants = filterData.plants.filter(p => !kw || p.toLowerCase().includes(kw));
+  document.getElementById('fPlantOptions').innerHTML = plants.map(p => {
+    const checked = selectedPlants.has(p) ? 'checked' : '';
+    return '<label class="multi-option"><input type="checkbox" value="' + esc(p) + '" ' + checked + '><span>' + esc(p) + '</span></label>';
+  }).join('');
+  document.querySelectorAll('#fPlantOptions input').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) selectedPlants.add(cb.value);
+      else selectedPlants.delete(cb.value);
+      renderPlantTags();
+      page = 1;
+      loadCompounds();
+    });
+  });
+}
+
+function renderPlantTags() {
+  const trigger = document.getElementById('fPlantTrigger');
+  if (selectedPlants.size === 0) {
+    trigger.innerHTML = '<span class="placeholder">全部来源</span>';
+    return;
+  }
+  trigger.innerHTML = [...selectedPlants].map(p =>
+    '<span class="multi-tag">' + esc(p) + '<span data-p="' + esc(p) + '">&times;</span></span>'
+  ).join('');
+  trigger.querySelectorAll('span[data-p]').forEach(x => {
+    x.addEventListener('click', e => {
+      e.stopPropagation();
+      selectedPlants.delete(x.dataset.p);
+      const cb = document.querySelector('#fPlantOptions input[value="' + (x.dataset.p.replace(/"/g,'\\"')) + '"]');
+      if (cb) cb.checked = false;
+      renderPlantTags();
+      page = 1;
+      loadCompounds();
+    });
+  });
+}
+
+document.getElementById('fPlantTrigger').addEventListener('click', e => {
+  if (e.target.tagName === 'SPAN' && e.target.dataset.p) return;
+  document.getElementById('fPlantDropdown').classList.toggle('open');
+});
+document.addEventListener('click', e => {
+  if (!document.getElementById('fPlantWrap').contains(e.target))
+    document.getElementById('fPlantDropdown').classList.remove('open');
+});
+document.getElementById('fPlantSearch').addEventListener('input', e =>
+  renderPlantOptions(e.target.value));
+
+// ============================================================
+// 化合物列表
+// ============================================================
+function buildQuery() {
+  const p = new URLSearchParams();
+  p.set('page', page);
+  p.set('page_size', pageSize);
+  const kw = document.getElementById('fKeyword').value.trim();
+  if (kw) p.set('keyword', kw);
+  const cls = document.getElementById('fClass').value;
+  if (cls) p.set('std_class', cls);
+  if (currentSys === 'natural') {
+    const cas = document.getElementById('fCas').value.trim();
+    if (cas) p.set('cas', cas);
+    if (document.getElementById('chkSmiles').checked) p.set('has_smiles', 'true');
+  } else {
+    if (document.getElementById('chkEvidence').checked) p.set('has_evidence', 'true');
+    if (document.getElementById('chkUplc').checked) p.set('has_uplc', 'true');
+  }
+  if (selectedPlants.size) p.set('plants', [...selectedPlants].join(','));
+  return p;
+}
+
+function loadCompounds() {
+  const cfg = SYS_CONFIG[currentSys];
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="loading">加载中…</td></tr>';
+  api(cfg.compounds + '?' + buildQuery().toString()).then(data => {
+    document.getElementById('totalNum').textContent = data.total.toLocaleString();
+    renderTableHead();
+    renderTableRows(data.items);
+    const totalPages = Math.max(1, Math.ceil(data.total / pageSize));
+    document.getElementById('pageInfo').textContent = page + ' / ' + totalPages;
+    document.getElementById('btnPrev').disabled = page <= 1;
+    document.getElementById('btnNext').disabled = page >= totalPages;
+  }).catch(e => {
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="loading">加载失败：' + esc(e.message) + '</td></tr>';
+  });
+}
+
+function renderTableHead() {
+  let cols;
+  if (currentSys === 'natural') {
+    cols = ['名称','分类','CAS','分子式','来源库','植物来源'];
+  } else {
+    cols = ['名称','分类','来源植物','文献证据','UPLC','原始表','在线文献'];
+  }
+  document.getElementById('tableHead').innerHTML =
+    cols.map(c => '<th>' + c + '</th>').join('');
+}
+
+function renderTableRows(items) {
+  const tbody = document.getElementById('tbody');
+  if (currentSys === 'natural') {
+    tbody.innerHTML = items.map(c => {
+      const dbs = [];
+      if (c.mce === 'Yes') dbs.push('<span class="badge badge-green">MCE</span>');
+      if (c.targetmol === 'Yes') dbs.push('<span class="badge badge-amber">TM</span>');
+      if (c.phenol_explorer === 'Yes') dbs.push('<span class="badge badge-blue">PE</span>');
+      if (c.foodb === 'Yes') dbs.push('<span class="badge badge-gray">FooDB</span>');
+      const name = esc(c.name_en);
+      return '<tr><td><span class="link-name" data-name="' + name + '">' + name + '</span>' +
+        (c.name_cn ? '<div style="color:var(--ink3);font-size:12px">' + esc(c.name_cn) + '</div>' : '') + '</td>' +
+        '<td><span class="badge badge-green">' + esc(c.std_class) + '</span></td>' +
+        '<td style="font-size:12px">' + esc(c.cas || '—') + '</td>' +
+        '<td style="font-size:12px">' + esc(c.formula || '—') + '</td>' +
+        '<td>' + (dbs.length ? dbs.join(' ') : '—') + '</td>' +
+        '<td style="font-size:12px;color:var(--ink2);max-width:200px">' + esc(c.representative_plants || c.common_sources || '—') + '</td></tr>';
+    }).join('');
+  } else {
+    tbody.innerHTML = items.map(c => {
+      const name = esc(c.name);
+      return '<tr><td><span class="link-name" data-name="' + name + '">' + name + '</span></td>' +
+        '<td><span class="badge badge-green">' + esc(c.std_class) + '</span></td>' +
+        '<td style="font-size:12px;max-width:220px">' + esc(c.sources || '—') + '</td>' +
+        '<td style="text-align:center;font-weight:600;color:var(--green)">' + (c.total_count || 0) + '</td>' +
+        '<td style="text-align:center">' + (c.uplc_count || 0) + '</td>' +
+        '<td style="text-align:center">' + (c.orig_count || 0) + '</td>' +
+        '<td style="text-align:center">' + (c.online_lit_count || 0) + '</td></tr>';
+    }).join('');
+  }
+  tbody.querySelectorAll('.link-name').forEach(el =>
+    el.addEventListener('click', () => openDetail(el.dataset.name)));
+}
+
+// 筛选事件
+['fKeyword','fClass','fCas'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => { page = 1; loadCompounds(); });
+});
+['chkSmiles','chkEvidence','chkUplc'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => { page = 1; loadCompounds(); });
+});
+document.getElementById('btnReset').addEventListener('click', () => {
+  resetState();
+  initSystem();
+});
+document.getElementById('btnPrev').addEventListener('click', () => { if (page > 1) { page--; loadCompounds(); } });
+document.getElementById('btnNext').addEventListener('click', () => { page++; loadCompounds(); });
+document.getElementById('pageSizeSel').addEventListener('change', e => {
+  pageSize = parseInt(e.target.value); page = 1; loadCompounds();
+});
+
+// ============================================================
+// 详情弹窗
+// ============================================================
+function openDetail(name) {
+  const cfg = SYS_CONFIG[currentSys];
+  document.getElementById('modalTitle').textContent = '加载中…';
+  document.getElementById('modalBody').innerHTML = '<div class="loading">加载中…</div>';
+  document.getElementById('modalMask').classList.add('open');
+  api(cfg.detail + encodeURIComponent(name)).then(data => {
+    document.getElementById('modalTitle').textContent = data.name_en || data.name || name;
+    if (currentSys === 'natural') renderNaturalDetail(data);
+    else renderOilDetail(data);
+  }).catch(e => {
+    document.getElementById('modalBody').innerHTML = '<div class="loading">加载失败：' + esc(e.message) + '</div>';
+  });
+}
+
+function closeModal() {
+  document.getElementById('modalMask').classList.remove('open');
+}
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('modalMask').addEventListener('click', e => {
+  if (e.target === document.getElementById('modalMask')) closeModal();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+function renderNaturalDetail(c) {
+  const smi = c.smiles || c.foodb_smiles || '';
+  let html = '';
+  // 结构
+  html += '<div class="detail-section"><h3>化学结构</h3>';
+  if (smi) {
+    html += '<div style="text-align:center"><img style="max-width:100%;max-height:260px" src="https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/' +
+      encodeURIComponent(smi) + '/PNG?image_size=large" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'">' +
+      '<div style="display:none;font-size:12px;color:var(--ink3);word-break:break-all">SMILES: ' + esc(smi) + '</div></div>';
+  } else {
+    html += '<div style="color:var(--ink3);font-size:13px">无 SMILES 数据</div>';
+  }
+  html += '</div>';
+  // 基本信息
+  html += '<div class="detail-section"><h3>基本信息</h3><div class="detail-grid">';
+  [['中文名', c.name_cn],['CAS', c.cas],['分子式', c.formula],
+   ['标准分类', c.std_class],['原始分类', c.raw_class],['二级分类', c.secondary_class],
+   ['族系', c.family],['收录级别', c.inclusion_level],
+   ['SMILES来源', c.smiles_source],['FooDB ID', c.foodb_public_id],
+   ['FooDB证据级别', c.foodb_evidence_level],
+  ].forEach(([k,v]) => { if (v) html += '<div class="detail-item"><div class="k">' + k + '</div><div class="v">' + esc(v) + '</div></div>'; });
+  html += '</div></div>';
+  // 代表植物
+  if (c.representative_plants || c.common_sources) {
+    html += '<div class="detail-section"><h3>植物来源</h3><div style="font-size:13px">' +
+      esc(c.representative_plants || '') + (c.common_sources ? '<br><span style="color:var(--ink3)">常见来源：' + esc(c.common_sources) + '</span>' : '') + '</div></div>';
+  }
+  // 数据库链接
+  const links = [];
+  if (c.mce_url) links.push('<a href="' + esc(c.mce_url) + '" target="_blank">MCE 数据库</a>');
+  if (c.targetmol_url) links.push('<a href="' + esc(c.targetmol_url) + '" target="_blank">TargetMol</a>');
+  if (c.pe_url) links.push('<a href="' + esc(c.pe_url) + '" target="_blank">Phenol-Explorer</a>');
+  if (c.foodb_public_id) links.push('<a href="https://foodb.ca/compounds/' + esc(c.foodb_public_id) + '" target="_blank">FooDB</a>');
+  if (c.cas) links.push('<a href="https://pubchem.ncbi.nlm.nih.gov/#query=' + encodeURIComponent(c.cas) + '" target="_blank">PubChem</a>');
+  if (links.length) html += '<div class="detail-section"><h3>数据库链接</h3><div style="display:flex;flex-wrap:wrap;gap:12px;font-size:13px">' + links.join('') + '</div></div>';
+  if (c.foodb_description) html += '<div class="detail-section"><h3>描述</h3><div style="font-size:13px;color:var(--ink2)">' + esc(c.foodb_description) + '</div></div>';
+  document.getElementById('modalBody').innerHTML = html;
+}
+
+function renderOilDetail(c) {
+  let html = '';
+  // 统计概览
+  html += '<div class="detail-section"><h3>检出统计</h3><div class="detail-grid">';
+  [['标准分类', c.std_class],['原始分类', c.raw_class],
+   ['总检出次数', c.total_count],['原始表次数', c.orig_count],
+   ['新增文献次数', c.new_lit_count],['UPLC次数', c.uplc_count],
+   ['在线文献次数', c.online_lit_count],['在线实体次数', c.online_entity_count],
+  ].forEach(([k,v]) => {
+    if (v !== null && v !== undefined && v !== 0)
+      html += '<div class="detail-item"><div class="k">' + k + '</div><div class="v">' + esc(v) + '</div></div>';
+  });
+  html += '</div></div>';
+  if (c.sources) html += '<div class="detail-section"><h3>来源植物</h3><div style="font-size:13px">' + esc(c.sources) + '</div></div>';
+  if (c.reference) html += '<div class="detail-section"><h3>参考文献</h3><div style="font-size:13px">' + esc(c.reference) + '</div></div>';
+
+  // 文献证据
+  const ev = c.evidence_list || [];
+  html += '<div class="detail-section"><h3>文献证据（' + ev.length + ' 条）</h3>';
+  if (!ev.length) html += '<div style="color:var(--ink3);font-size:13px">无</div>';
+  else html += ev.slice(0, 60).map(e =>
+    '<div class="evidence-item"><div class="meta"><span>' + esc(e.source || '') + '</span>' +
+    '<span>' + esc(e.data_source || '') + '</span><span>' + esc(e.platform || '') + '</span></div>' +
+    '<div>' + esc(e.reference || '') +
+    (e.doi ? ' · <a href="https://doi.org/' + esc(e.doi) + '" target="_blank">' + esc(e.doi) + '</a>' : '') + '</div>' +
+    (e.snippet ? '<div class="snippet" style="margin-top:6px">' + esc(e.snippet) + '</div>' : '') +
+    '</div>'
+  ).join('');
+  html += '</div>';
+
+  // UPLC
+  const up = c.uplc_list || [];
+  if (up.length) {
+    html += '<div class="detail-section"><h3>UPLC-MS/MS 参数（' + up.length + ' 条）</h3>';
+    html += '<div style="overflow-x:auto"><table class="uplc-table"><thead><tr>' +
+      '<th>Formula</th><th>Q1</th><th>Q3</th><th>MW</th><th>Ion</th><th>Level</th><th>CAS</th></tr></thead><tbody>' +
+      up.slice(0, 30).map(u => '<tr>' +
+        '<td>' + esc(u.formula) + '</td><td>' + esc(u.q1) + '</td><td>' + esc(u.q3) + '</td>' +
+        '<td>' + esc(u.mw) + '</td><td>' + esc(u.ionization) + '</td><td>' + esc(u.level) + '</td>' +
+        '<td>' + esc(u.cas) + '</td></tr>').join('') +
+      '</tbody></table></div></div>';
+  }
+  document.getElementById('modalBody').innerHTML = html;
+}
+
+// ============================================================
+// 统计看板
+// ============================================================
+function renderStats() {
+  const cfg = SYS_CONFIG[currentSys];
+  chartInstances.forEach(c => c.dispose());
+  chartInstances = [];
+  document.getElementById('kpiGrid').innerHTML = '<div class="loading" style="grid-column:1/-1">加载统计数据…</div>';
+  document.getElementById('chartGrid').innerHTML = '';
+  api(cfg.stats).then(s => {
+    renderKpis(s);
+    renderCharts(s);
+  }).catch(e => {
+    document.getElementById('kpiGrid').innerHTML = '<div class="loading" style="grid-column:1/-1">加载失败：' + esc(e.message) + '</div>';
+  });
+}
+
+function renderKpis(s) {
+  let cards;
+  if (currentSys === 'natural') {
+    cards = [
+      ['化合物总数', s.total_compounds, ''],
+      ['分类数量', s.total_categories, 'amber'],
+      ['含 SMILES 结构', s.has_smiles, 'blue'],
+      ['MCE 收录', s.cross_database.MCE, ''],
+      ['FooDB 收录', s.cross_database.FooDB, ''],
+      ['PhenolExplorer', s.cross_database.PhenolExplorer, 'blue'],
+    ];
+  } else {
+    cards = [
+      ['化合物总数', s.total_compounds, ''],
+      ['分类数量', s.total_categories, 'amber'],
+      ['文献证据条目', s.evidence_count, 'blue'],
+      ['UPLC 参数条目', s.uplc_count, ''],
+      ['文献记录', s.literature_count, 'amber'],
+    ];
+  }
+  document.getElementById('kpiGrid').innerHTML = cards.map(([k, v, cls]) =>
+    '<div class="kpi-card ' + cls + '"><div class="kpi-num">' + (v || 0).toLocaleString() + '</div><div class="kpi-label">' + k + '</div></div>'
+  ).join('');
+}
+
+function renderCharts(s) {
+  const grid = document.getElementById('chartGrid');
+  // 分类分布
+  grid.innerHTML = '<div class="chart-card"><h3>分类化合物数量分布</h3><div class="chart-box" id="chartClass"></div></div>' +
+    '<div class="chart-card" id="chartCard2"><h3></h3><div class="chart-box" id="chart2"></div></div>';
+
+  const classEntries = Object.entries(s.class_distribution).sort((a,b) => b[1]-a[1]);
+  const c1 = echarts.init(document.getElementById('chartClass'));
+  chartInstances.push(c1);
+  c1.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    legend: { type: 'scroll', orient: 'vertical', right: 0, top: 'middle', textStyle: { fontSize: 11 } },
+    series: [{
+      type: 'pie', radius: ['38%','68%'], center: ['38%','50%'],
+      data: classEntries.map(([k,v]) => ({ name: k, value: v })),
+      label: { show: false },
+      color: ['#2d6a4f','#52b788','#b8732a','#2c5f8a','#74c69d','#dda15e','#6096ba','#95d5b2','#c8852a','#468faf','#40916c','#ee9b00','#3a7ca5','#b5c99a']
+    }]
+  });
+
+  const c2 = echarts.init(document.getElementById('chart2'));
+  chartInstances.push(c2);
+  if (currentSys === 'natural') {
+    document.getElementById('chartCard2').querySelector('h3').textContent = '多数据库交叉覆盖';
+    const cd = s.cross_database;
+    c2.setOption({
+      tooltip: {},
+      grid: { left: 50, right: 20, top: 30, bottom: 30 },
+      xAxis: { type: 'category', data: Object.keys(cd) },
+      yAxis: { type: 'value' },
+      series: [{ type: 'bar', data: Object.values(cd),
+        itemStyle: { color: '#2d6a4f', borderRadius: [4,4,0,0] },
+        label: { show: true, position: 'top', fontSize: 11 } }]
+    });
+  } else {
+    document.getElementById('chartCard2').querySelector('h3').textContent = '来源植物出现频次 Top 20';
+    const tp = (s.top_plants || []).slice().reverse();
+    c2.setOption({
+      tooltip: {},
+      grid: { left: 130, right: 40, top: 10, bottom: 20 },
+      xAxis: { type: 'value' },
+      yAxis: { type: 'category', data: tp.map(t => t.name), axisLabel: { fontSize: 11 } },
+      series: [{ type: 'bar', data: tp.map(t => t.count),
+        itemStyle: { color: '#b8732a' } }]
+    });
+  }
+}
+
+window.addEventListener('resize', () => chartInstances.forEach(c => c.resize()));
+
+// ============================================================
+// 文件上传
+// ============================================================
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+uploadZone.addEventListener('dragleave', e => uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag');
+  if (e.dataTransfer.files.length) doUpload(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length) doUpload(fileInput.files[0]);
+});
+
+function doUpload(file) {
+  const result = document.getElementById('uploadResult');
+  result.innerHTML = '<div style="color:var(--ink3)">正在上传并解析 ' + esc(file.name) + '…</div>';
+  const fd = new FormData();
+  fd.append('file', file);
+  fetch('/api/upload', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(res => {
+      if (res.error) {
+        result.innerHTML = '<div class="err">上传失败：' + esc(res.error) + '</div>';
+      } else {
+        const added = res.added;
+        const parts = Object.entries(added).map(([k,v]) => k + ' ' + v);
+        result.innerHTML = '<div class="ok">上传成功：' + esc(parts.join('，')) + '</div>';
+        // 刷新当前系统
+        initSystem();
+        chartInstances.forEach(c => c.dispose());
+        chartInstances = [];
+      }
+    })
+    .catch(e => {
+      result.innerHTML = '<div class="err">网络错误：' + esc(e.message) + '</div>';
+    });
+}
+
+// ============================================================
+// 启动
+// ============================================================
+initSystem();
+</script>
+</body>
+</html>
